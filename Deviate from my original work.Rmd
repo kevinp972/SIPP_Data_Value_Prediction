@@ -64,6 +64,6 @@ MSEcol <- mean((y_rand-prcol)^2)
 c(MSEnohs, MSEhs, MSEsmcol, MSEcol)
 ```
 
-No difference in performance is found between removing different terms for multi-collinearity. For interpretability, we choose to remove **hs** and **hequity**.
+No difference in performance is found between removing different terms for multi-collinearity. For interpretability, we choose to remove **hs** for education level. Since **hequity** represents home value minus home mortgage, it is intuitively a better predictor of total wealth than **hval** or **hmort** itself. Hence, choosing **hequity** over **hval** and **hmort** is the more sensible choice.
 
 ```
