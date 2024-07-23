@@ -1,0 +1,67 @@
+---
+title: "Predicting Total Wealth: A Predictive Analysis Using the 1991 SIPP Data"
+author: "Xueshan (Kevin) Peng"
+output: pdf_document
+---
+
+```{r setup, include=FALSE, tidy=TRUE}
+knitr::opts_chunk$set(echo = TRUE)
+Sys.setenv(lang = "en_US")
+setwd("C:/Users/pengx/OneDrive/Documents/School/UCSD/Third Year Summer/Econ 178")
+```
+
+# Introduction
+## Loading and Inspecting the Data
+
+Let's take a look at the first 6 rows of the data.
+
+```{r}
+data <- read.table('data_tr.txt', head = T)[,-1]
+head(data)
+```
+
+We can see that the data is in good shape, where categorical variables are already transformed into dummy variables. We can also see that there exists multi-collinearity between education levels.
+
+```{r}
+summary(data)
+```
+
+The variables **ira**, **nohs**, **smcol**, **col**, and **male** exhibited a value of 0 at the 3rd quantile. They are therefore susceptible to outliers, with a significant number of data points taking 
+on the value of 0. It should also be noted that most observations are created by female participants.
+
+```{r}
+hist(data$tw)
+```
+
+It is obvious that there are outliers with enormous health, and we should take caution in our subsequent analysis.
+
+## Testing and Removing Multi-collinearity
+
+Let's test whether removing different educational level predictors affect my model's performance, gauged by (MSPE). For simplicity sake, I did not use k-fold cross validation.
+
+```{r}
+k <- 10
+set.seed(123)
+rand <- sample(nrow(data), floor(nrow(data)/k))
+train <- setdiff(c(1:nrow(data)), rand)
+y_rand <- data$tw[rand]
+
+regnohs <- lm(tw ~ 1 + hs + smcol + col, data = data[train,])
+reghs <- lm(tw ~ 1 + nohs + smcol + col, data = data[train,])
+regsmcol <- lm(tw ~ 1 + nohs + hs + col, data = data[train,])
+regcol <- lm(tw ~ 1 + nohs + hs + smcol, data = data[train,])
+
+prnohs <- predict(regnohs, newdata = data[rand,])
+prhs <- predict(reghs, newdata = data[rand,])
+prsmcol <- predict(regsmcol, newdata = data[rand,])
+prcol <- predict(regcol, newdata = data[rand,])
+
+MSEnohs <- mean((y_rand-prnohs)^2)
+MSEhs <- mean((y_rand-prhs)^2)
+MSEsmcol <- mean((y_rand-prsmcol)^2)
+MSEcol <- mean((y_rand-prcol)^2)
+
+c(MSEnohs, MSEhs, MSEsmcol, MSEcol)
+```
+
+No difference in performance is found between removing different terms for multi-collinearity. For interpretability, we choose to remove **hs** and **hequity**.
