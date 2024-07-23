@@ -20,20 +20,31 @@ data <- read.table('data_tr.txt', head = T)[,-1]
 head(data)
 ```
 
-We can see that the data is in good shape, where categorical variables are already transformed into dummy variables. We can also see that there exists multi-collinearity between education levels and (**hmort**, **hval**, and **hequity**).
+We can see that the data is in good shape, where categorical variables are already transformed into dummy variables. We can also see that there exists multi-collinearity in education levels (**nohs**, **hs**, **smcol**, **col**) and home-ownership-related variables (**hmort**, **hval**, and **hequity**).
 
 ```{r}
 summary(data)
 ```
 
-The variables **ira**, **nohs**, **smcol**, **col**, and **male** exhibited a value of 0 at the 3rd quantile. They are therefore susceptible to outliers, with a significant number of data points taking 
-on the value of 0. It should also be noted that most observations are created by female participants.
+While there exist observations where total wealth is negative, it should be noted that the variable includes home mortgage, so it does not necessarily indicate that there are incorrect data entries. 
+
+The variables **ira**, **nohs**, **smcol**, **col**, and **male** exhibited a value of 0 at the 3rd quantile. They are probably a significant number of data points taking 
+on the value of 0. Since **male** is on the list, it should also be noted that most observations are associated with female participants. 
+
+Also, the variable **tw**, **nifa**, **hmort**, and **hequity** have means that are much greater than medians, showing signs of large outliers.
+
+In the histogram below, we can visualize the existence of outliers with enormous wealth.
 
 ```{r}
 hist(data$tw)
 ```
 
-It is obvious that there are outliers with enormous health, and we should take caution in our subsequent analysis.
+Using the graph, we can determine that removing the outliers with **tw** above $1,000,000 would be appropriate. 
+
+```{r}
+data = subset(data, data$tw<1000000)
+summary(data)
+```
 
 ## Testing and Removing Multi-collinearity
 
@@ -64,6 +75,15 @@ MSEcol <- mean((y_rand-prcol)^2)
 c(MSEnohs, MSEhs, MSEsmcol, MSEcol)
 ```
 
-No difference in performance is found between removing different terms for multi-collinearity. For interpretability, we choose to remove **hs** for education level. Since **hequity** represents home value minus home mortgage, it is intuitively a better predictor of total wealth than **hval** or **hmort** itself. Hence, choosing **hequity** over **hval** and **hmort** is the more sensible choice.
+No difference in performance is found between removing different terms for multi-collinearity. For interpretability, we choose to remove **hs** for education level. 
 
+## More Data Cleaning
+
+Since **hequity** represents home value minus home mortgage, it is intuitively a better predictor of total wealth than **hval** or **hmort** itself. Hence, choosing **hequity** over **hval** and **hmort** is the more sensible choice.
+
+Including years of education (**educ**) along with education levels is redundant. Considering that diplomas are usually much more important than years of education, prioritizing education level over years of education is appropriate. 
+
+```{r}
+data <- data[, !(names(data) %in% c("hs", "hval", "hmort", "educ"))]
 ```
+
