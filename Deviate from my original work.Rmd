@@ -151,6 +151,10 @@ lasso_model <- glmnet(X, y, lambda = best_lambda, alpha = 1)
 lasso_inference <- hdi::lasso.proj(X, y)
 
 print(coef(lasso_model))
+```
 
+
+
+```{r}
 print(lasso_inference$pval)
 ```
