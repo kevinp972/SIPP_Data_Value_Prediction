@@ -20,13 +20,36 @@ data <- read.table('data_tr.txt', head = T)[,-1]
 head(data)
 ```
 
+The variables in this dataset is defined as follows:
+
+* tw: Total wealth (in US $), which is defined as “net financial assets, including Individual Retirement Account (IRA) and 401(k) assets, plus housing equity plus the value of business, property, and motor vehicles.” 
+* ira: individual retirement account (IRA) balance (in US $). 
+* e401: Binary variable, where 1 indicates eligibility for a 401(k)-retirement plan, and 0 indicates otherwise. 
+* nifa: Non-401k financial assets (in US $). 
+* inc: Income (in US $). 
+* hmort: Home mortgage (in US $). 
+* hval: Home value (in US $). 
+* hequity: Home value minus home mortgage. 
+* educ: Education (in years). 
+* male: Binary variable, where 1 indicates male and 0 indicates otherwise. 
+* twoearn: Binary variable, where 1 indicates two earners in the household, and 0 indicates otherwise. 
+* nohs, hs, smcol, col: Dummy variables for education levels - no high school, high school, some college, college. 
+* age: Age. 
+* fsize: Family size. 
+* marr: Binary variable, where 1 indicates married and 0 indicates otherwise.
+
+```{r}
+colSums(is.na(data))
+any(duplicated(data))
+```
+
 We can see that the data is in good shape, where categorical variables are already transformed into dummy variables. We can also see that there exists multi-collinearity in education levels (**nohs**, **hs**, **smcol**, **col**) and home-ownership-related variables (**hmort**, **hval**, and **hequity**).
 
 ```{r}
 summary(data)
 ```
 
-While there exist observations where total wealth is negative, it should be noted that the variable includes home mortgage, so it does not necessarily indicate that there are incorrect data entries. 
+While there exist observations where total wealth is negative, it should be noted that the variable includes home equity, which can be negative, so it does not necessarily indicate that there are incorrect data entries. 
 
 The variables **ira**, **nohs**, **smcol**, **col**, and **male** exhibited a value of 0 at the 3rd quantile. They are probably a significant number of data points taking 
 on the value of 0. Since **male** is on the list, it should also be noted that most observations are associated with female participants. 
@@ -77,7 +100,7 @@ c(MSEnohs, MSEhs, MSEsmcol, MSEcol)
 
 No difference in performance is found between removing different terms for multi-collinearity. For interpretability, we choose to remove **hs** for education level. 
 
-## More Data Cleaning
+## More Feature Selections
 
 Since **hequity** represents home value minus home mortgage, it is intuitively a better predictor of total wealth than **hval** or **hmort** itself. Hence, choosing **hequity** over **hval** and **hmort** is the more sensible choice.
 
@@ -87,3 +110,84 @@ Including years of education (**educ**) along with education levels is redundant
 data <- data[, !(names(data) %in% c("hs", "hval", "hmort", "educ"))]
 ```
 
+# Creating a Linear Baseline Model
+
+## Using Lasso and Forward/Backward Stepwise Selection
+
+We will strive to create a linear baseline model. This will serve as a baseline to compare to when we later add nonlinear transformations and interaction terms.
+
+For this approach, we are going to include all the features in the dataset. We will let the feature selection algorithms, Lasso and Stepwise Selection, to select the features for us.
+
+For better accuracy, I employed 10-fold cross validation. Leave-one-out cross validation would yield a even more accurate result, but doing so on a dataset containing 7919 observations would take too much computational power. 
+
+```{r, warning=FALSE, message=FALSE}
+library(MASS)
+library(glmnet)
+
+n <- nrow(data)
+k <- 10 
+set.seed(123)
+id <- sample(rep(1:k, length=n))
+MSPE.stepwise_backward <- MSPE.stepwise_forward <- MSPE.lasso <- rep(NA, k)
+
+for (f in 1:k){
+  test <- (id == f)
+  train <- (id != f)
+  
+  # Stepwise
+  full <- lm(tw ~ ., data=data[train,])
+  null <- lm(tw ~ 1, data=data[train,])
+  
+  forward <- stepAIC(null, scope=list(lower=null, upper=full), trace = FALSE, direction='forward')
+  backward <- stepAIC(full, scope=list(lower=null, upper=full), trace = FALSE, direction='backward')
+  
+  pr.stepwise_forward <- predict(forward, newdata=data[test,])
+  pr.stepwise_backward <- predict(backward, newdata=data[test,])
+  
+  # Lasso
+  response_var <- "tw"
+  y <- data[[response_var]]
+  X <- as.matrix(data[ , !(names(data) %in% response_var)])
+  X.train <- as.matrix(X[train,])
+  y.train <- y[train]
+  X.test <- X[test,]
+  
+  lasso.cv <- cv.glmnet(x = X.train, y = y.train, nfolds = k, alpha = 1)
+  lasso <- glmnet(x = X.train, y = y.train, lambda = lasso.cv$lambda.min, alpha = 1)
+  
+  pr.lasso <- predict(lasso, newx=X.test)
+  
+  # MSPE
+  MSPE.stepwise_forward[f] <- mean((y[test] - pr.stepwise_forward)^2)
+  MSPE.stepwise_backward[f] <- mean((y[test] - pr.stepwise_backward)^2)
+  MSPE.lasso[f] <- mean((y[test] - pr.lasso)^2)
+}
+
+# Check MSPE
+c(mean(MSPE.lasso), mean(MSPE.stepwise_forward), mean(MSPE.stepwise_backward))
+```
+
+As shown in the results above, Lasso yielded a lower MSPE than forward or backward stepwise selection. 
+
+Let's now inspect the coefficients that Lasso chose and their associated p-values. 
+
+Since Lasso performs both variable selection and shrinkage, leading to biased coefficient estimates, traditional significance tests for coefficients (like p-values) are not straightforwardly available. Therefore, we use the *hdi* (High Dimensional Inference) package to approximate the p-values.
+
+```{r, warning=FALSE, message=FALSE}
+library(hdi)
+
+response_var <- "tw"
+y <- data[[response_var]]
+X <- as.matrix(data[ , !(names(data) %in% response_var)])
+
+lasso_cv <- cv.glmnet(X, y, alpha = 1)
+best_lambda <- lasso_cv$lambda.min
+
+lasso_model <- glmnet(X, y, lambda = best_lambda, alpha = 1)
+
+lasso_inference <- hdi::lasso.proj(X, y)
+
+print(lasso_inference$pval)
+
+print(coef(lasso_model))
+```
