@@ -210,7 +210,8 @@ plot_scatterplots <- function(data, response_var, feature_names) {
   
   for (feature in feature_names) {
     p <- ggplot(data = data) +
-      geom_point(mapping = aes(x = !!sym(feature), y = !!sym(response_var)), alpha = 0.5) +
+      geom_point(mapping = aes(x = !!sym(feature), y = !!sym(response_var)), 
+                 alpha = 0.5) +
       labs(x = feature, y = response_var) +
       theme_minimal() +
       theme(aspect.ratio = 1)
@@ -224,7 +225,9 @@ plot_scatterplots <- function(data, response_var, feature_names) {
 We can then call the function and use the *gridExtra* package to arrange them.
 
 ```{r}
-plots <- plot_scatterplots(data_subset, response_var = "tw", c("ira", "nifa", "inc", "hequity", "age"))
+plots <- plot_scatterplots(data_subset, 
+                           response_var = "tw", 
+                           c("ira", "nifa", "inc", "hequity", "age"))
 
 do.call(grid.arrange, c(plots, ncol = 3)) 
 ```
@@ -272,10 +275,8 @@ x.grid <- seq(from = result$boundary_knots[1],
               length.out = 1000)
 pr <- predict(age_spline_model, newdata = data.frame(age = x.grid))
 
-# Create a new data frame for the predictions
 predictions <- data.frame(age = x.grid, tw = pr)
 
-# Plot the data and the fitted spline curve
 ggplot(data = data) + 
   geom_point(mapping = aes(x = age, y = tw)) +
   geom_line(data = predictions, 
@@ -291,8 +292,14 @@ However, the visualization is suggesting that there might be some overfitting of
 ```{r}
 source("spline_transform_dataset.R")
 
-transformed_data <- spline_transform_dataset(data, "age", result$knots_chosen, result$boundary_knots)
-transformed_data_sub <- spline_transform_dataset(data_subset, "age", result$knots_chosen, result$boundary_knots)
+transformed_data <- spline_transform_dataset(data, 
+                                             "age", 
+                                             result$knots_chosen, 
+                                             result$boundary_knots)
+transformed_data_sub <- spline_transform_dataset(data_subset, 
+                                                 "age", 
+                                                 result$knots_chosen, 
+                                                 result$boundary_knots)
 
 source("KfoldCVFunctions.R")
 
