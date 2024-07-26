@@ -235,4 +235,9 @@ One that stands out as being nonlinear is the relationship between **age** and *
 
 ## Applying Nonlinear Transformations
 
+```{r}
+source("select_optimal_knots.R")
 
+knots = select_optimal_knots(data, "tw", "age", 20)
+print(knots)
+```
