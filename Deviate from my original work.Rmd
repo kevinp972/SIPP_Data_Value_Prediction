@@ -65,7 +65,6 @@ Using the graph, we can determine that removing the outliers with **tw** above $
 
 ```{r}
 data = subset(data, data$tw<1000000)
-summary(data)
 ```
 
 ## Testing and Removing Multi-collinearity
@@ -153,8 +152,17 @@ lasso_inference <- hdi::lasso.proj(X, y)
 print(coef(lasso_model))
 ```
 
-
+As shown above, Lasso has selected all of the features except nohs, col, and fsize. The coefficients are shown above.
 
 ```{r}
 print(lasso_inference$pval)
+```
+
+Above are the approximated p-values the coefficients. We can gauge how strong of a predictor each feature is. As expected, ira and e401 have a really small p-value as they are literally a part of **tw**.
+
+* tw: Total wealth (in US $), which is defined as “net financial assets, including Individual Retirement Account (IRA) and 401(k) assets, plus housing equity plus the value of business, property, and motor vehicles.” 
+
+Let's also compute the MSPE for a simple OLS model with the selected features for comparison.
+```{r}
+data_subset <- data[, !(names(data) %in% c("nohs", "col", "fsize"))]
 ```
