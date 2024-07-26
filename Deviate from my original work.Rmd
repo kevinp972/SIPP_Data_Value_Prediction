@@ -204,8 +204,8 @@ plot_scatterplots <- function(data, response_var) {
   plot_list <- list()
   
   for (feature in feature_names) {
-    p <- ggplot(data, aes_string(x = feature, y = response_var)) +
-      geom_point(alpha = 0.5) +
+    p <- ggplot(data = data) +
+      geom_point(mapping = aes_string(x = feature, y = response_var), alpha = 0.5) +
       labs(x = feature, y = response_var) +
       theme_minimal()
     plot_list[[feature]] <- p
