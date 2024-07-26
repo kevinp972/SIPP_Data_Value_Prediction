@@ -238,7 +238,7 @@ Similarly, **nifa** is defined as non-401k financial assets and has a seemingly 
 
 One that stands out as being nonlinear is the relationship between **age** and **tw**. In the area where there are more data points, represented by a darker color, there seems to be a sharper increase in **tw** at a younger age. 
 
-## Applying Nonlinear Transformations to **age**
+## Applying Nonlinear Transformations to Age
 
 For the following reasons, I will be using cubic splines as opposed to polynomials.
 
@@ -287,7 +287,7 @@ ggplot(data = data) +
 
 We can then use the previous output to construct a cubic spline model, from which predictions can be obtained and visualized through the graph.
 
-However, the visualization is suggesting that there might be some overfitting of the data, as there is no reason for wealth to have a surge of increase at an older age. We will validate this through the below analysis.
+However, the visualization is suggesting that there might be some overfitting of the data, as there is no reason for wealth to have a jump at the age of 62. We will validate this through the below analysis.
 
 ```{r}
 source("spline_transform_dataset.R")
@@ -321,20 +321,28 @@ print(c(
 
 Applying the transformation to **age** and incorporating it into the dataset, we can now use General Additive Method (GAM) to compare the model's performance with the benchmark.
 
-Unfortunately, the original linear model yielded a better performance, suggesting that the relationship between **tw** and **age** is approximately linear.
+Confirming our previous guess about overfitting, the original linear model yielded a better performance, suggesting that the relationship between **tw** and **age** is approximately linear.
 
-## Applying Nonlinear Transformations to **inc**
+## Applying Nonlinear Transformations to Income (inc)
+
+Let's now inspect the relationship between **tw** and **inc**, which looks a giant lump. This might suggest a nonlinear relationship.
+
+```{r}
+ggplot(data = data) + 
+  geom_point(mapping = aes(x = inc, y = tw))
+```
+
+Notice that there are less observations on the higher end of the variable **inc**. Hence, a natural cubic spline would help reduce the variance which is otherwise substantial when **inc** takes on a large value. In the region where X is smaller than the smallest knot, or 
+larger than the largest knot, a natural cubic spline constrains the fit to be linear. 
 
 ```{r}
 source("select_optimal_knots_natural.R")
 
 result = select_optimal_knots_natural(data, "tw", "inc", 8)
-print(result$knots_chosen)
-print(result$boundary_knots)
 print(result$plot)
 ```
 
-
+The optimal number of knots is 3.
 
 ```{r}
 inc_spline_model <- lm(tw ~ ns(inc, 
@@ -347,10 +355,8 @@ x.grid <- seq(from = result$boundary_knots[1],
               length.out = 1000)
 pr <- predict(inc_spline_model, newdata = data.frame(inc = x.grid))
 
-# Create a new data frame for the predictions
 predictions <- data.frame(inc = x.grid, tw = pr)
 
-# Plot the data and the fitted spline curve
 ggplot(data = data) + 
   geom_point(mapping = aes(x = inc, y = tw)) +
   geom_line(data = predictions, 
@@ -359,13 +365,19 @@ ggplot(data = data) +
             color = "blue")
 ```
 
-
+The line fitted by the natural spline model is shown above.
 
 ```{r}
 source("natural_spline_transform_dataset.R")
 
-transformed_data <- natural_spline_transform_dataset(data, "inc", result$knots_chosen, result$boundary_knots)
-transformed_data_sub <- natural_spline_transform_dataset(data_subset, "inc", result$knots_chosen, result$boundary_knots)
+transformed_data <- natural_spline_transform_dataset(data, 
+                                                     "inc", 
+                                                     result$knots_chosen, 
+                                                     result$boundary_knots)
+transformed_data_sub <- natural_spline_transform_dataset(data_subset, 
+                                                         "inc", 
+                                                         result$knots_chosen, 
+                                                         result$boundary_knots)
 
 source("KfoldCVFunctions.R")
 
@@ -384,3 +396,17 @@ print(c(
   Backward_Stepwise = mean_mspe_backward
 ))
 ```
+
+Once again, the original linear model yielded a better performance, suggesting that the relationship between **tw** and **inc** is approximately linear.
+
+## Conclusion for Finding Nonlinearity 
+
+Using the definition of **tw**, we have ascertained the linearity of its relationship with each of the following:
+
+* **ira**
+* **nifa**
+* **hequity**
+
+Also, applying General Additive Method and spline basis representation did not yield a better predictive performance, implying that the relationship of **tw** with **age** and **inc** are approximately linear as well.
+
+We can therefore conclude that we have encountered bad luck with this dataset, where there are almost no room for nonlinear models to help improve predictive power.
