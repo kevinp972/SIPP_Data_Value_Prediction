@@ -171,7 +171,7 @@ data_subset <- data[, !(names(data) %in% c("nohs", "col", "fsize"))]
 
 source("KfoldCVFunctions.R")
 mean_mspe_ols <- compute_ols_mspe(data_subset, response_var = "tw")
-mean_mspe_ridge <- compute_ridge_mspe(data, response_var = "tw")
+mean_mspe_ridge <- compute_ridge_mspe(data_subset, response_var = "tw")
 
 print(c(
   OLS = mean_mspe_ols, 
@@ -238,6 +238,68 @@ One that stands out as being nonlinear is the relationship between **age** and *
 ```{r}
 source("select_optimal_knots.R")
 
-knots = select_optimal_knots(data, "tw", "age", 20)
-print(knots)
+result = select_optimal_knots(data, "tw", "age", 20)
+print(result$knots_chosen)
+print(result$boundary_knots)
+print(result$plot)
+```
+
+```{r}
+age_spline_model <- lm(tw ~ bs(age, 
+                               knots = result$knots_chosen, 
+                               Boundary.knots = result$boundary_knots), 
+                       data = data)
+
+x.grid <- seq(from = result$boundary_knots[1], 
+              to = result$boundary_knots[2], 
+              length.out = 1000)
+pr <- predict(age_spline_model, newdata = data.frame(age = x.grid))
+
+# Create a new data frame for the predictions
+predictions <- data.frame(age = x.grid, tw = pr)
+
+# Plot the data and the fitted spline curve
+ggplot(data = data) + 
+  geom_point(mapping = aes(x = age, y = tw)) +
+  geom_line(data = predictions, 
+            mapping = aes(x = age, y = tw), 
+            lwd = 1, 
+            color = "blue")
+```
+
+
+
+```{r}
+source("spline_transform_dataset.R")
+
+transformed_data <- spline_transform_dataset(data, "age", result$knots_chosen, result$boundary_knots)
+transformed_data_sub <- spline_transform_dataset(data_subset, "age", result$knots_chosen, result$boundary_knots)
+
+source("KfoldCVFunctions.R")
+
+mean_mspe_lasso <- compute_lasso_mspe(transformed_data, response_var = "tw")
+mean_mspe_forward <- compute_forward_stepwise_mspe(transformed_data, response_var = "tw")
+mean_mspe_backward <- compute_backward_stepwise_mspe(transformed_data, response_var = "tw")
+mean_mspe_ols <- compute_ols_mspe(transformed_data_sub, response_var = "tw")
+mean_mspe_ridge <- compute_ridge_mspe(transformed_data_sub, response_var = "tw")
+
+print(c(
+  OLS_without_transformations = benchmark,
+  OLS = mean_mspe_ols, 
+  Ridge = mean_mspe_ridge, 
+  Lasso = mean_mspe_lasso, 
+  Forward_Stepwise = mean_mspe_forward, 
+  Backward_Stepwise = mean_mspe_backward
+))
+```
+
+## inc
+
+```{r}
+source("select_optimal_knots.R")
+
+result = select_optimal_knots(data, "tw", "inc", 20)
+print(result$knots_chosen)
+print(result$boundary_knots)
+print(result$plot)
 ```
