@@ -186,6 +186,10 @@ Surprisingly, a simple OLS regression on selected features yielded better result
 
 The mean MSPE of our OLS regression will than serve as our benchmark, which we will strive to improve upon when fitting nonlinear transformations.
 
+```{r}
+benchmark = mean_mspe_ols
+```
+
 # Finding Nonlinear Relationships and Applying Transformations
 
 ## Inspecting the Relationships between **tw** and Features
@@ -228,3 +232,7 @@ do.call(grid.arrange, c(plots, ncol = 3))
 Since **tw** is defined as net financial assets including **ira**, it is expected that there is a linear relationship between **tw** and **ira**, and this is what we can see on the scatterplot, too. Similarly, **nifa** is defined as non-401k financial assets and has a seemingly linear relationship with **tw** despite it having a more data points on the lower end than the higher end of **nifa**. 
 
 One that stands out as being nonlinear is the relationship between **age** and **tw**. In the area where there are more data points, represented by a darker color, there seems to be a sharper increase in **tw** at a younger age. 
+
+## Applying Nonlinear Transformations
+
+
