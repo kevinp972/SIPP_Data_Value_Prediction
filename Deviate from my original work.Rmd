@@ -162,7 +162,67 @@ Above are the approximated p-values the coefficients. We can gauge how strong of
 
 * tw: Total wealth (in US $), which is defined as “net financial assets, including Individual Retirement Account (IRA) and 401(k) assets, plus housing equity plus the value of business, property, and motor vehicles.” 
 
-Let's also compute the MSPE for a simple OLS model with the selected features for comparison.
+Let's also compute the MSPE for a simple OLS regression model and for a ridge regression model with the selected features for comparison.
+
 ```{r}
 data_subset <- data[, !(names(data) %in% c("nohs", "col", "fsize"))]
+
+source("KfoldCVFunctions.R")
+mean_mspe_ols <- compute_ols_mspe(data_subset, response_var = "tw")
+mean_mspe_ridge <- compute_ridge_mspe(data, response_var = "tw")
+
+print(paste("Mean MSPE for OLS Regression:", round(mean_mspe_ols,0)))
+print(paste("Mean MSPE for Ridge Regression:", round(mean_mspe_ridge,0)))
+print(paste("Mean MSPE for Lasso Regression:", round(mean_mspe_lasso,0)))
+print(paste("Mean MSPE for Forward Stepwise Selection:", round(mean_mspe_forward,0)))
+print(paste("Mean MSPE for Backward Stepwise Selection:", round(mean_mspe_backward,0)))
+```
+
+Surprisingly, a simple OLS regression on selected features yielded better results than ridge regression, Lasso, forward/backward stepwise selection. 
+
+The mean MSPE of our OLS regression will than serve as our benchmark, which we will strive to improve upon when fitting nonlinear transformations.
+
+# Finding Nonlinear Relationships and Applying Transformations
+
+## Inspecting the Relationships between **tw** and Features
+
+After creating an appropriate linear model, the appropriate next step to improve predictive performance is through applying nonlinear transformations. 
+
+Let's first inspect the relationships between **tw** and all the features in the dataset.
+
+```{r}
+# Load necessary libraries
+library(tidyverse)
+library(gridExtra)  # Alternatively, library(patchwork)
+
+# Function to create scatterplots for each feature
+plot_scatterplots <- function(data, response_var) {
+  # Get feature names excluding the response variable
+  feature_names <- setdiff(names(data), response_var)
+  
+  # Create a list to store ggplot objects
+  plot_list <- list()
+  
+  for (feature in feature_names) {
+    p <- ggplot(data, aes_string(x = feature, y = response_var)) +
+      geom_point(alpha = 0.5) +
+      labs(x = feature, y = response_var) +
+      theme_minimal()
+    plot_list[[feature]] <- p
+  }
+  
+  return(plot_list)
+}
+
+# Example usage
+# data <- your_data_frame_here
+plots <- plot_scatterplots(data_subset, response_var = "tw")
+
+# Display plots using gridExtra
+do.call(grid.arrange, c(plots, ncol = 2))  # Adjust ncol to control the number of columns
+
+# Alternatively, display plots using patchwork
+# library(patchwork)
+# wrap_plots(plots, ncol = 2)  # Adjust ncol to control the number of columns
+
 ```
