@@ -243,16 +243,23 @@ For the following reasons, I will be using cubic splines as opposed to polynomia
 * Polynomials lack the ability to incorporate thresholds like splines, leading to undesirably global outcomes. In other words, observations within one range of the predictor strongly influence the model's behavior across different ranges.
 * A polynomial fit is likely to produce undesirable results at the boundaries.
 
-I have constructed a function to find the optimal number of knots and also where to place them. 
+I have constructed a function to find the optimal number of knots and also where to place them. The function returns a set of knots, boundary knots (endpoints of the feature), as well as a plot showing the MSE vs. Number of Knots.
 
 ```{r}
 source("select_optimal_knots.R")
 
 result = select_optimal_knots(data, "tw", "age", 20)
 print(result$knots_chosen)
+```
+
+We can see that the algorithms returns the optimal set of knots, which, in this case, contains 10 items.
+
+```{r}
 print(result$boundary_knots)
 print(result$plot)
 ```
+
+We can see through the visualization that the MSE is the lowest when the number of knots is 10.
 
 ```{r}
 age_spline_model <- lm(tw ~ bs(age, 
@@ -277,7 +284,9 @@ ggplot(data = data) +
             color = "blue")
 ```
 
+We can then use the previous output to construct a cubic spline model, from which predictions can be obtained and visualized through the graph.
 
+However, the visualization is suggesting that there might be some overfitting of the data, as there is no reason for wealth to have a surge of increase at an older age. We will validate this through the below analysis.
 
 ```{r}
 source("spline_transform_dataset.R")
@@ -303,7 +312,11 @@ print(c(
 ))
 ```
 
-## inc
+Applying the transformation to **age** and incorporating it into the dataset, we can now use General Additive Method (GAM) to compare the model's performance with the benchmark.
+
+Unfortunately, the original linear model yielded a better performance, suggesting that the relationship between **tw** and **age** is approximately linear.
+
+## Applying Nonlinear Transformations to **inc**
 
 ```{r}
 source("select_optimal_knots_natural.R")
