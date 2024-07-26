@@ -126,7 +126,9 @@ mean_mspe_forward <- compute_forward_stepwise_mspe(data, response_var = "tw")
 mean_mspe_backward <- compute_backward_stepwise_mspe(data, response_var = "tw")
 
 # Print results
-print(c(Lasso = mean_mspe_lasso, Forward_Stepwise = mean_mspe_forward, Backward_Stepwise = mean_mspe_backward))
+print(c(Lasso = mean_mspe_lasso, 
+        Forward_Stepwise = mean_mspe_forward, 
+        Backward_Stepwise = mean_mspe_backward))
 ```
 
 As shown in the results above, Lasso yielded a lower MSPE than forward or backward stepwise selection. 
@@ -171,11 +173,13 @@ source("KfoldCVFunctions.R")
 mean_mspe_ols <- compute_ols_mspe(data_subset, response_var = "tw")
 mean_mspe_ridge <- compute_ridge_mspe(data, response_var = "tw")
 
-print(paste("Mean MSPE for OLS Regression:", round(mean_mspe_ols,0)))
-print(paste("Mean MSPE for Ridge Regression:", round(mean_mspe_ridge,0)))
-print(paste("Mean MSPE for Lasso Regression:", round(mean_mspe_lasso,0)))
-print(paste("Mean MSPE for Forward Stepwise Selection:", round(mean_mspe_forward,0)))
-print(paste("Mean MSPE for Backward Stepwise Selection:", round(mean_mspe_backward,0)))
+print(c(
+  OLS = mean_mspe_ols, 
+  Ridge = mean_mspe_ridge, 
+  Lasso = mean_mspe_lasso, 
+  Forward_Stepwise = mean_mspe_forward, 
+  Backward_Stepwise = mean_mspe_backward
+))
 ```
 
 Surprisingly, a simple OLS regression on selected features yielded better results than ridge regression, Lasso, forward/backward stepwise selection. 
@@ -188,41 +192,39 @@ The mean MSPE of our OLS regression will than serve as our benchmark, which we w
 
 After creating an appropriate linear model, the appropriate next step to improve predictive performance is through applying nonlinear transformations. 
 
-Let's first inspect the relationships between **tw** and all the features in the dataset.
+Let's first inspect the relationships between **tw** and all the quantitative (non-binary) features in the dataset. Nonlinear transformations are inappropriate for binary features because they only have two distinct values, making such transformations ineffective and potentially meaningless.
 
-```{r}
-# Load necessary libraries
+The below function compiles all the scatterplots into a list of *ggplot* objects.
+
+```{r, warning=FALSE, message=FALSE}
 library(tidyverse)
-library(gridExtra)  # Alternatively, library(patchwork)
+library(gridExtra) 
 
-# Function to create scatterplots for each feature
-plot_scatterplots <- function(data, response_var) {
-  # Get feature names excluding the response variable
-  feature_names <- setdiff(names(data), response_var)
+plot_scatterplots <- function(data, response_var, feature_names) {
   
-  # Create a list to store ggplot objects
   plot_list <- list()
   
   for (feature in feature_names) {
     p <- ggplot(data = data) +
-      geom_point(mapping = aes_string(x = feature, y = response_var), alpha = 0.5) +
+      geom_point(mapping = aes(x = !!sym(feature), y = !!sym(response_var)), alpha = 0.5) +
       labs(x = feature, y = response_var) +
-      theme_minimal()
+      theme_minimal() +
+      theme(aspect.ratio = 1)
     plot_list[[feature]] <- p
   }
   
   return(plot_list)
 }
-
-# Example usage
-# data <- your_data_frame_here
-plots <- plot_scatterplots(data_subset, response_var = "tw")
-
-# Display plots using gridExtra
-do.call(grid.arrange, c(plots, ncol = 2))  # Adjust ncol to control the number of columns
-
-# Alternatively, display plots using patchwork
-# library(patchwork)
-# wrap_plots(plots, ncol = 2)  # Adjust ncol to control the number of columns
-
 ```
+
+We can then call the function and use the *gridExtra* package to arrange them.
+
+```{r}
+plots <- plot_scatterplots(data_subset, response_var = "tw", c("ira", "nifa", "inc", "hequity", "age"))
+
+do.call(grid.arrange, c(plots, ncol = 3)) 
+```
+
+Since **tw** is defined as net financial assets including **ira**, it is expected that there is a linear relationship between **tw** and **ira**, and this is what we can see on the scatterplot, too. Similarly, **nifa** is defined as non-401k financial assets and has a seemingly linear relationship with **tw** despite it having a more data points on the lower end than the higher end of **nifa**. 
+
+One that stands out as being nonlinear is the relationship between **age** and **tw**. In the area where there are more data points, represented by a darker color, there seems to be a sharper increase in **tw** at a younger age. 
