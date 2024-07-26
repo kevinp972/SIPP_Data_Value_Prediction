@@ -229,11 +229,21 @@ plots <- plot_scatterplots(data_subset, response_var = "tw", c("ira", "nifa", "i
 do.call(grid.arrange, c(plots, ncol = 3)) 
 ```
 
-Since **tw** is defined as net financial assets including **ira**, it is expected that there is a linear relationship between **tw** and **ira**, and this is what we can see on the scatterplot, too. Similarly, **nifa** is defined as non-401k financial assets and has a seemingly linear relationship with **tw** despite it having a more data points on the lower end than the higher end of **nifa**. 
+Since **tw** is defined as net financial assets including **ira**, it is expected that there is a linear relationship between **tw** and **ira**, and this is what we can see on the scatterplot, too. The same goes with **hequity**.
+
+Similarly, **nifa** is defined as non-401k financial assets and has a seemingly linear relationship with **tw** despite it having a more data points on the lower end than the higher end of **nifa**.
 
 One that stands out as being nonlinear is the relationship between **age** and **tw**. In the area where there are more data points, represented by a darker color, there seems to be a sharper increase in **tw** at a younger age. 
 
-## Applying Nonlinear Transformations
+## Applying Nonlinear Transformations to **age**
+
+For the following reasons, I will be using cubic splines as opposed to polynomials.
+
+* Polynomials must use a high degree for flexible fits, but splines are able to do so with the degree fixed. This is likely to produce more stable estimates.
+* Polynomials lack the ability to incorporate thresholds like splines, leading to undesirably global outcomes. In other words, observations within one range of the predictor strongly influence the model's behavior across different ranges.
+* A polynomial fit is likely to produce undesirable results at the boundaries.
+
+I have constructed a function to find the optimal number of knots and also where to place them. 
 
 ```{r}
 source("select_optimal_knots.R")
@@ -296,10 +306,61 @@ print(c(
 ## inc
 
 ```{r}
-source("select_optimal_knots.R")
+source("select_optimal_knots_natural.R")
 
-result = select_optimal_knots(data, "tw", "inc", 20)
+result = select_optimal_knots_natural(data, "tw", "inc", 8)
 print(result$knots_chosen)
 print(result$boundary_knots)
 print(result$plot)
+```
+
+
+
+```{r}
+inc_spline_model <- lm(tw ~ ns(inc, 
+                               knots = result$knots_chosen, 
+                               Boundary.knots = result$boundary_knots), 
+                       data = data)
+
+x.grid <- seq(from = result$boundary_knots[1], 
+              to = result$boundary_knots[2], 
+              length.out = 1000)
+pr <- predict(inc_spline_model, newdata = data.frame(inc = x.grid))
+
+# Create a new data frame for the predictions
+predictions <- data.frame(inc = x.grid, tw = pr)
+
+# Plot the data and the fitted spline curve
+ggplot(data = data) + 
+  geom_point(mapping = aes(x = inc, y = tw)) +
+  geom_line(data = predictions, 
+            mapping = aes(x = inc, y = tw), 
+            lwd = 1, 
+            color = "blue")
+```
+
+
+
+```{r}
+source("natural_spline_transform_dataset.R")
+
+transformed_data <- natural_spline_transform_dataset(data, "inc", result$knots_chosen, result$boundary_knots)
+transformed_data_sub <- natural_spline_transform_dataset(data_subset, "inc", result$knots_chosen, result$boundary_knots)
+
+source("KfoldCVFunctions.R")
+
+mean_mspe_lasso <- compute_lasso_mspe(transformed_data, response_var = "tw")
+mean_mspe_forward <- compute_forward_stepwise_mspe(transformed_data, response_var = "tw")
+mean_mspe_backward <- compute_backward_stepwise_mspe(transformed_data, response_var = "tw")
+mean_mspe_ols <- compute_ols_mspe(transformed_data_sub, response_var = "tw")
+mean_mspe_ridge <- compute_ridge_mspe(transformed_data_sub, response_var = "tw")
+
+print(c(
+  OLS_without_transformations = benchmark,
+  OLS = mean_mspe_ols, 
+  Ridge = mean_mspe_ridge, 
+  Lasso = mean_mspe_lasso, 
+  Forward_Stepwise = mean_mspe_forward, 
+  Backward_Stepwise = mean_mspe_backward
+))
 ```

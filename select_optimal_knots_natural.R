@@ -1,7 +1,7 @@
 library(splines)
 library(ggplot2)  
 
-select_optimal_knots <- function(data, response_var, feature_var, max_knots, k = 10) {
+select_optimal_knots_natural <- function(data, response_var, feature_var, max_knots, k = 10) {
   set.seed(123)
   n <- nrow(data)
   ii <- sample(rep(1:k, length = n))
@@ -23,7 +23,7 @@ select_optimal_knots <- function(data, response_var, feature_var, max_knots, k =
       knots <- knots[2:(num_knots + 1)] # Remove endpoints
       
       # Train the model
-      formula_str <- paste(response_var, "~ bs(", feature_var, ", knots = knots, Boundary.knots = boundary_knots)", sep = "")
+      formula_str <- paste(response_var, "~ ns(", feature_var, ", knots = knots, Boundary.knots = boundary_knots)", sep = "")
       model <- lm(as.formula(formula_str), data = data[train,])
       
       # Make Predictions
