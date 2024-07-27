@@ -533,12 +533,10 @@ Our model effectively identifies and excludes the correct outliers, as all data 
 
 ## Loading the Testing Data for Predictions
 
-With the model constructed, we can now create predictions.
+With the model constructed, we can now create predictions. Let's prepare the dataset for predictions.
 
 ```{r}
 data_te <- read.table("data_for_prediction.txt", header = TRUE, sep = "\t", dec = ".")[,-1]
-
-# data_te <- data_te[, !(names(data) %in% c("hs", "hval", "hmort", "educ", "nohs", "col", "fsize", "smcol"))]
 
 data_te <- data_te %>%
     mutate(
@@ -552,8 +550,30 @@ data_te <- data_te %>%
       `twoearn:age` = twoearn * age
     )
 
-predictions <- predict(final_model, newdata=data_te)
-data_te <- cbind(predicted_tw = predictions, data_te)
+print(colnames(data_te))
 ```
 
+The prepared dataset now matches all the features from our model. Additional features that were not part of the model will not affect the prediction if they are not included in the model.
 
+```{r}
+predictions <- predict(final_model, newdata=data_te)
+data_te <- cbind(predicted_tw = predictions, data_te)
+write.csv(data_te, "Predictions.csv")
+write.table(predictions, file = 'Predictions.txt')
+```
+
+We can now use the model to create predictions and save it in a file.
+
+## Assessing the model's performance imporvement
+
+Let's assess our model's performance against that of the baseline model.
+
+```{r}
+percentage_reduction <- round(((benchmark - mean_mspe_ols) / benchmark) * 100, 1)
+
+print(c(
+  MSPE_Basline_Model = benchmark,
+  MSPE_Final_Model = mean_mspe_ols,
+  Percentage_Reduction = percentage_reduction
+))
+```
