@@ -410,3 +410,23 @@ Using the definition of **tw**, we have ascertained the linearity of its relatio
 Also, applying General Additive Method and spline basis representation did not yield a better predictive performance, implying that the relationship of **tw** with **age** and **inc** are approximately linear as well.
 
 We can therefore conclude that we have encountered bad luck with this dataset, where there are almost no room for nonlinear models to help improve predictive power.
+
+# Adding Interaction Terms
+
+Adding interaction terms to a model can improve its predictive performance, especially if there are meaningful interactions between variables.
+
+As mentioned before, based on the definition of **tw**, **tw** contains **ira**, **nifa**, and **hequity**. Hence, the coefficient to these variables should be close to 1 and shall not be influenced by other variables. Hence we will not consider these three variables for interaction terms.
+
+```{r}
+source("create_interactions.R")
+
+data_with_interactions <- create_interactions(data_subset, "tw", c("ira", "nifa", "hequity"))
+
+print(colnames(data_with_interactions))
+```
+
+
+
+```{r}
+source()
+```
