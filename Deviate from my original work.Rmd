@@ -417,6 +417,8 @@ Adding interaction terms to a model can improve its predictive performance, espe
 
 As mentioned before, based on the definition of **tw**, **tw** contains **ira**, **nifa**, and **hequity**. Hence, the coefficient to these variables should be close to 1 and shall not be influenced by other variables. Hence we will not consider these three variables for interaction terms.
 
+Using a custom-built function, we can input the variable we are predicting and the variables we want to exclude to obtain a dataset with all possible interaction terms.
+
 ```{r}
 source("create_interactions.R")
 
@@ -425,8 +427,133 @@ data_with_interactions <- create_interactions(data_subset, "tw", c("ira", "nifa"
 print(colnames(data_with_interactions))
 ```
 
-
+Let's check whether we have the right columns. It seems that the function has done its job, obtaining 11 + (6 + 5 + 4 + 3 + 2 + 1) = 32 columns.
 
 ```{r}
-source()
+source("KfoldCVFunctions.R")
+
+mean_mspe_lasso <- compute_lasso_mspe(data_with_interactions, response_var = "tw")
+mean_mspe_forward <- compute_forward_stepwise_mspe(data_with_interactions, response_var = "tw")
+mean_mspe_backward <- compute_backward_stepwise_mspe(data_with_interactions, response_var = "tw")
+
+print(c(
+  OLS_without_interactions = benchmark,
+  Lasso = mean_mspe_lasso, 
+  Forward_Stepwise = mean_mspe_forward, 
+  Backward_Stepwise = mean_mspe_backward
+))
 ```
+
+Based on the output above, we can conclude that adding interaction terms is the right choice. Using all three feature selection methods, we are able to obtain a better predictive performance than the benchmark.
+
+Backward stepwise selection has yielded the best performance. Let's check what interaction terms it has chosen for our model.
+
+```{r}
+full <- lm(as.formula(paste(response_var, "~ .")), data=data_with_interactions)
+null <- lm(as.formula(paste(response_var, "~ 1")), data=data_with_interactions)
+
+backward <- stepAIC(full, scope=list(lower=null, upper=full), trace = FALSE, direction='backward')
+
+summary(backward)
+```
+
+It is looking promising as most of the features are highly significant with very small p-values.
+
+The choice of interaction terms is intuitive, too. Just as an example, if a person is eligible for 401k retirement plan, which means the value of **e401** is 1, he/she is likely to accumulate more wealth with age than a person who is not eligible for the retirement plan. Hence, the coefficient of the interaction term **e401:age** would naturally be positive.
+
+Let's visualize this on a graph.
+
+```{r}
+ggplot(data, aes(x = age, y = tw, color = factor(e401))) + 
+  geom_point() + 
+  geom_smooth(method = "lm") +
+  labs(title = "Interaction between E401 and Age on TW")
+```
+
+This is just one of the examples. All others interactions make intuitive sense if you think hard enough. I am going to skip the explanations for the purpose of not making this Markdown file too long.
+
+Let's now try the selected features with OLS and Ridge Regression.
+
+```{r}
+data_with_selected_interactions <- data_subset %>%
+    mutate(
+      `e401:inc` = e401 * inc,
+      `e401:age` = e401 * age,
+      `inc:male` = inc * male,
+      `inc:twoearn` = inc * twoearn,
+      `inc:age` = inc * age,
+      `inc:marr` = inc * marr,
+      `male:smcol` = male * smcol,
+      `twoearn:age` = twoearn * age
+    ) %>%
+    select(-smcol)
+
+mean_mspe_ols <- compute_ols_mspe(data_with_selected_interactions, response_var = "tw")
+mean_mspe_ridge <- compute_ridge_mspe(data_with_selected_interactions, response_var = "tw")
+
+print(c(
+  OLS_without_interactions = benchmark,
+  OLS = mean_mspe_ols, 
+  Ridge = mean_mspe_ridge, 
+  Lasso = mean_mspe_lasso, 
+  Forward_Stepwise = mean_mspe_forward, 
+  Backward_Stepwise = mean_mspe_backward
+))
+```
+
+With the selected features, our OLS model is once again able to lower the MSPE obtained through the 10-fold cross validation process.
+
+This will conclude our selection for interaction terms. Let's now construct the final model.
+
+# Conclusion
+
+## Constructing the Final Model
+
+```{r}
+formula <- as.formula(paste(response_var, "~ ."))
+final_model <- lm(formula, data=data_with_selected_interactions)
+summary(final_model)
+```
+
+Here we have the final model. It is unfortunate that we are unable to include any transformations for nonlinearity without impacting the predictive performance, but doing so is more suitable accounting for the linearity of the relationship between **tw** and features.
+
+The coefficients and the associated p-values are shown above.
+
+```{r}
+plot(final_model, which = 1)
+```
+
+The model demonstrates a strong fit to the data, as evidenced by the mostly flat residuals versus fitted values graph. This indicates that the model performs well across all areas of the data.
+
+```{r}
+plot(final_model, which = 5)
+```
+
+Our model effectively identifies and excludes the correct outliers, as all data points fall well within a Cook's distance of 0.5. This indicates that no single point is unduly influencing the model's results.
+
+## Loading the Testing Data for Predictions
+
+With the model constructed, we can now create predictions.
+
+```{r}
+data_te <- read.table("data_for_prediction.txt", header = TRUE, sep = "\t", dec = ".")[,-1]
+
+# data_te <- data_te[, !(names(data) %in% c("hs", "hval", "hmort", "educ", "nohs", "col", "fsize", "smcol"))]
+
+data_te <- data_te %>%
+    mutate(
+      `e401:inc` = e401 * inc,
+      `e401:age` = e401 * age,
+      `inc:male` = inc * male,
+      `inc:twoearn` = inc * twoearn,
+      `inc:age` = inc * age,
+      `inc:marr` = inc * marr,
+      `male:smcol` = male * smcol,
+      `twoearn:age` = twoearn * age
+    )
+
+predictions <- predict(final_model, newdata=data_te)
+data_te <- cbind(predicted_tw = predictions, data_te)
+```
+
+
