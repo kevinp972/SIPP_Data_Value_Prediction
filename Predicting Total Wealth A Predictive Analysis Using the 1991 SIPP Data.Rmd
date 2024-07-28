@@ -10,6 +10,7 @@ Sys.setenv(lang = "en_US")
 ```
 
 # Introduction
+
 ## Loading and Inspecting the Data
 
 Let's take a look at the first 6 rows of the data.
@@ -98,7 +99,7 @@ c(MSEnohs, MSEhs, MSEsmcol, MSEcol)
 
 No difference in performance is found between removing different terms for multi-collinearity. For interpretability, we choose to remove **hs** for education level. 
 
-## More Feature Selections
+## Removing Redundancies
 
 Since **hequity** represents home value minus home mortgage, it is intuitively a better predictor of total wealth than **hval** or **hmort** itself. Hence, choosing **hequity** over **hval** and **hmort** is the more sensible choice.
 
@@ -108,15 +109,44 @@ Including years of education (**educ**) along with education levels is redundant
 data <- data[, !(names(data) %in% c("hs", "hval", "hmort", "educ"))]
 ```
 
-# Creating a Linear Baseline Model
+# Creating Linear Models
+
+## Creating a Simple Linear Model and Setting a Baseline
+
+Let's create a simple linear model. This will serve as a baseline to compare to when we later filter through features, add nonlinear transformations, and add interaction terms.
+
+```{r}
+baseline <- lm(tw ~., data=data)
+summary(baseline)
+```
+
+Running a OLS regression on all of the features yields the above result. Surprisingly, after removing some of features which we considered to be redundant to predicting **tw**, most features are marked as significant.
+
+Let's now assess the predictive performance of such a model.
+
+For better accuracy, I employed 10-fold cross validation. Leave-one-out cross validation would yield a even more accurate result, but doing so on a dataset containing 7919 observations would take too much computational power. 
+
+In this Markdown file, I have saved complex/reusable code as functions in separate R Script files, which I will import to have them utilized. Feel free to check them out!
+
+```{r, warning=FALSE, message=FALSE}
+source("KfoldCVFunctions.R")
+
+mean_mspe_ols <- compute_ols_mspe(data, response_var = "tw")
+
+cat("Mean MSPE of this model is", mean_mspe_ols, ".\n")
+```
+
+The mean MSPE of our OLS regression will than serve as our benchmark, which we will strive to improve upon when selecting features.
+
+```{r}
+baseline <- benchmark <- mean_mspe_ols
+```
 
 ## Using Lasso and Forward/Backward Stepwise Selection
 
-We will strive to create a linear baseline model. This will serve as a baseline to compare to when we later add nonlinear transformations and interaction terms.
+The baseline model, including all features, has overfitting issues. Hence, we should omit some features from our model to improve the predictive performance.
 
 For this approach, we are going to include all the features in the dataset. We will let the feature selection algorithms, Lasso and Stepwise Selection, to select the features for us.
-
-For better accuracy, I employed 10-fold cross validation. Leave-one-out cross validation would yield a even more accurate result, but doing so on a dataset containing 7919 observations would take too much computational power. 
 
 ```{r, warning=FALSE, message=FALSE}
 source("KfoldCVFunctions.R")
@@ -126,12 +156,13 @@ mean_mspe_forward <- compute_forward_stepwise_mspe(data, response_var = "tw")
 mean_mspe_backward <- compute_backward_stepwise_mspe(data, response_var = "tw")
 
 # Print results
-print(c(Lasso = mean_mspe_lasso, 
+print(c(Baseline = benchmark,
+        Lasso = mean_mspe_lasso, 
         Forward_Stepwise = mean_mspe_forward, 
         Backward_Stepwise = mean_mspe_backward))
 ```
 
-As shown in the results above, Lasso yielded a lower MSPE than forward or backward stepwise selection. 
+As shown in the results above, all three feature selection methods helped us to obtain a better result. Lasso yielded a lower MSPE than forward or backward stepwise selection. 
 
 Let's now inspect the coefficients that Lasso chose and their associated p-values. 
 
@@ -174,7 +205,8 @@ mean_mspe_ols <- compute_ols_mspe(data_subset, response_var = "tw")
 mean_mspe_ridge <- compute_ridge_mspe(data_subset, response_var = "tw")
 
 print(c(
-  OLS = mean_mspe_ols, 
+  OLS_on_all_features = benchmark,
+  OLS_on_selected_features = mean_mspe_ols, 
   Ridge = mean_mspe_ridge, 
   Lasso = mean_mspe_lasso, 
   Forward_Stepwise = mean_mspe_forward, 
@@ -184,7 +216,7 @@ print(c(
 
 Surprisingly, a simple OLS regression on selected features yielded better results than ridge regression, Lasso, forward/backward stepwise selection. 
 
-The mean MSPE of our OLS regression will than serve as our benchmark, which we will strive to improve upon when fitting nonlinear transformations.
+The mean MSPE of our OLS regression will than serve as our new benchmark, which we will strive to improve upon when fitting nonlinear transformations.
 
 ```{r}
 benchmark = mean_mspe_ols
@@ -575,7 +607,7 @@ write.table(predictions, file = 'Predictions.txt')
 
 We can now use the model to create predictions and save it in a file.
 
-## Assessing the model's performance imporvement
+## Assessing Performance Improvements over Baseline
 
 Let's assess our model's performance against that of the baseline model.
 
@@ -583,7 +615,7 @@ Let's assess our model's performance against that of the baseline model.
 percentage_reduction <- round(((benchmark - mean_mspe_ols) / benchmark) * 100, 1)
 
 print(c(
-  MSPE_Basline_Model = benchmark,
+  MSPE_Basline_Model = baseline,
   MSPE_Final_Model = mean_mspe_ols,
   Percentage_Reduction = percentage_reduction
 ))
