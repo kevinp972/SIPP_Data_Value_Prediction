@@ -6,7 +6,6 @@ select_optimal_knots <- function(data, response_var, feature_var, max_knots, k =
   n <- nrow(data)
   ii <- sample(rep(1:k, length = n))
   
-  # Initialize boundary knots based on the feature variable
   min_value <- min(data[[feature_var]], na.rm = TRUE)
   max_value <- max(data[[feature_var]], na.rm = TRUE)
   boundary_knots <- c(min_value, max_value)
@@ -18,18 +17,15 @@ select_optimal_knots <- function(data, response_var, feature_var, max_knots, k =
     test <- (ii == i)
     train <- (ii != i)
     for (num_knots in 2:max_knots) {
-      # Define knots
-      knots <- seq(from = min_value, to = max_value, length = num_knots + 2)
-      knots <- knots[2:(num_knots + 1)] # Remove endpoints
       
-      # Train the model
+      knots <- seq(from = min_value, to = max_value, length = num_knots + 2)
+      knots <- knots[2:(num_knots + 1)] 
+      
       formula_str <- paste(response_var, "~ bs(", feature_var, ", knots = knots, Boundary.knots = boundary_knots)", sep = "")
       model <- lm(as.formula(formula_str), data = data[train,])
       
-      # Make Predictions
       pred <- predict(model, newdata = data[test,])
       
-      # Calculate and store MSE
       MSE[i, num_knots - 1] <- mean((data[[response_var]][test] - pred)^2)
     }
   }
@@ -37,7 +33,6 @@ select_optimal_knots <- function(data, response_var, feature_var, max_knots, k =
   # Average MSE across folds
   mean_MSE <- colMeans(MSE)
   
-  # Create the plot using ggplot2
   mse_df <- data.frame(Knots = 2:max_knots, Mean_MSE = mean_MSE)
   p <- ggplot(mse_df, aes(x = Knots, y = Mean_MSE)) +
     geom_line() +
@@ -47,11 +42,9 @@ select_optimal_knots <- function(data, response_var, feature_var, max_knots, k =
          y = "Mean Squared Error") +
     theme_minimal()
   
-  # Optimal number of knots
-  optimal_knots <- which.min(mean_MSE) + 1 # Adding 1 to get the number of knots excluding boundary knots
+  optimal_knots <- which.min(mean_MSE) + 1 # Adding 1 to get the number of knots excluding boundary knots because the first index is for 2 knots
   final_num_knots <- optimal_knots + 2 # Including boundary knots
   
-  # Define final knots
   knots_chosen <- seq(from = min_value, to = max_value, length = final_num_knots)
   knots_chosen <- knots_chosen[2:(final_num_knots - 1)]
   

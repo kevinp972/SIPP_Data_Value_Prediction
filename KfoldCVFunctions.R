@@ -111,14 +111,11 @@ compute_ols_mspe <- function(data, response_var, k = 10, seed = 123) {
     test <- (id == f)
     train <- (id != f)
     
-    # Fit OLS model on the training data
     formula <- as.formula(paste(response_var, "~ ."))
     ols_model <- lm(formula, data=data[train,])
     
-    # Predict on the test data
     pr.ols <- predict(ols_model, newdata=data[test,])
     
-    # Compute Mean Squared Prediction Error (MSPE)
     MSPE.ols[f] <- mean((data[test, response_var] - pr.ols)^2)
   }
   
