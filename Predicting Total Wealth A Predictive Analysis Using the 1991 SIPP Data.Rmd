@@ -411,13 +411,20 @@ Also, applying General Additive Method and spline basis representation did not y
 
 We can therefore conclude that we have encountered bad luck with this dataset, where there are almost no room for nonlinear models to help improve predictive power.
 
-# Adding Interaction Terms
+# Using Interaction Terms to Improve Performance
 
 Adding interaction terms to a model can improve its predictive performance, especially if there are meaningful interactions between variables.
 
+## Selecting Interaction Terms
+
 As mentioned before, based on the definition of **tw**, **tw** contains **ira**, **nifa**, and **hequity**. Hence, the coefficient to these variables should be close to 1 and shall not be influenced by other variables. Hence we will not consider these three variables for interaction terms.
 
-Using a custom-built function, we can input the variable we are predicting and the variables we want to exclude to obtain a dataset with all possible interaction terms.
+We will be adding all possible interaction terms excluding those relevant to the aforementioned variables and then using feature selections methods to prune them to yield two important benefits:
+
+* Ensuring that we don't miss any potentially important interaction terms
+* Having less bias than manual selection
+
+Using a custom-built function, we can input the variable we are predicting and the variables we want to exclude to obtain a dataset with the desired interaction terms.
 
 ```{r}
 source("create_interactions.R")
@@ -461,6 +468,8 @@ It is looking promising as most of the features are highly significant with very
 
 The choice of interaction terms is intuitive, too. Just as an example, if a person is eligible for 401k retirement plan, which means the value of **e401** is 1, he/she is likely to accumulate more wealth with age than a person who is not eligible for the retirement plan. Hence, the coefficient of the interaction term **e401:age** would naturally be positive.
 
+## Visualizing Interaction between Features
+
 Let's visualize this on a graph.
 
 ```{r}
@@ -470,7 +479,9 @@ ggplot(data, aes(x = age, y = tw, color = factor(e401))) +
   labs(title = "Interaction between E401 and Age on TW")
 ```
 
-This is just one of the examples. All others interactions make intuitive sense if you think hard enough. I am going to skip the explanations for the purpose of not making this Markdown file too long.
+This is just one of the examples. All other interactions in the model make intuitive sense if you think hard enough. I am going to skip the explanations for the purpose of not making this Markdown file too long.
+
+## Assessing Performance Improvement
 
 Let's now try the selected features with OLS and Ridge Regression.
 
@@ -531,7 +542,7 @@ plot(final_model, which = 5)
 
 Our model effectively identifies and excludes the correct outliers, as all data points fall well within a Cook's distance of 0.5. This indicates that no single point is unduly influencing the model's results.
 
-## Loading the Testing Data for Predictions
+## Loading the Testing Data and Generating Predictions
 
 With the model constructed, we can now create predictions. Let's prepare the dataset for predictions.
 
